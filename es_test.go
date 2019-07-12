@@ -3,6 +3,7 @@ package eslib
 import (
 	"encoding/json"
 	"fmt"
+	"log"
 	"testing"
 	"time"
 )
@@ -24,8 +25,39 @@ type Search struct {
 	CreatedAt time.Time
 }
 
-func TestESSearchReq_Search(t *testing.T) {
-	req := &ESSearchReq{
+func TestBase_PutMapping(t *testing.T) {
+	req := &Base{
+		Index: "test",
+	}
+	mapping := `{"properties":{"content":{"type":"text","analyzer":"ik_max_word","search_analyzer":"ik_smart"}}}`
+	if _, err := req.PutMapping(mapping); err != nil {
+		panic(err)
+	}
+}
+
+func TestBase_GetMapping(t *testing.T) {
+	req := &Base{
+		Index: "test",
+	}
+	mapping, err := req.GetMapping()
+	if err != nil {
+		panic(err)
+	}
+	log.Printf(mapping)
+}
+
+func TestBase_DeleteIndex(t *testing.T) {
+	req := &Base{
+		Index: "test",
+	}
+	if _, err := req.DeleteIndex(); err != nil {
+		panic(err)
+	}
+
+}
+
+func TestSearchReq_Search(t *testing.T) {
+	req := &SearchReq{
 		Index:      "knowledge",
 		SearchKey:  "掉帧",
 		SortFields: map[string]string{"sid": "desc"},
