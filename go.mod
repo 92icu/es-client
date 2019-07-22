@@ -1,4 +1,4 @@
-module github.com/itanqian/es-client
+module gitlab.blackshark.com/groups/golibs/esclient
 
 go 1.12
 

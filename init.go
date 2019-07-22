@@ -9,16 +9,16 @@ import (
 var client *elastic.Client
 var validate *validator.Validate
 
-func Init(hosts, username, password string) (err error) {
+func Init(urls, username, password string) (err error) {
 	validate = validator.New()
-	urls := strings.Split(hosts, ",")
-	client, err = elastic.NewClient(elastic.SetURL(urls...),
+	hosts := strings.Split(urls, ",")
+	client, err = elastic.NewClient(elastic.SetURL(hosts...),
 		elastic.SetBasicAuth(username, password),
 		elastic.SetSniff(false))
 	return
 }
 
-func GetClient(hosts, username, password string) (cli *elastic.Client, err error) {
-	err = Init(hosts, username, password)
+func GetClient(urls, username, password string) (cli *elastic.Client, err error) {
+	err = Init(urls, username, password)
 	return client, err
 }

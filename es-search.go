@@ -7,7 +7,7 @@ import (
 )
 
 type HightLight struct {
-	HighlightFields   []string
+	HighlightFields   []string // 列表字段匹配到了关键字则高亮返回，匹配的字词用 HighlightPostTags，HighlightPreTags包裹
 	HighlightPostTags string
 	HighlightPreTags  string
 }
@@ -16,13 +16,12 @@ type HightLight struct {
 type SearchReq struct {
 	Index      string             `json:"Index" validate:"required"` // es 索引
 	SearchKey  string             // 模糊搜索词
-	Terms      map[string]string  // 过滤条件,精确匹配， field -> value
 	FieldBoost map[string]float64 // 搜索限定字段及权重, 为空时搜索所有字段，权重默认为 1.0
-	RangeField map[string]string  // 范围搜索，包括时间范围
 	Analyzer   string             // 默认 standard
-	SortFields map[string]string  //排序 field -> desc/asc
+	SortFields map[string]string  // 排序 field -> desc/asc
 	Page       int                `json:"Page" validate:"gt=0"`
 	PageSize   int                `json:"PageSize" validate:"gt=0"`
+	FilterField
 	HightLight
 }
 
@@ -33,18 +32,24 @@ func (r *SearchReq) Search() (total int64, hits []*elastic.SearchHit, err error)
 
 	boolQuery := elastic.NewBoolQuery()
 
-	match := getMatch(r.SearchKey, r.FieldBoost)
-	filters := getFilters(r.Terms, r.RangeField)
-	sorters := getSorters(r.SortFields)
-	highlight := getHighlight(r.HighlightFields, r.HighlightPreTags, r.HighlightPostTags)
+	if match := getMatch(r.SearchKey, r.Analyzer, r.FieldBoost); match != nil {
+		boolQuery.Must(match)
+	}
+	if filters := getFilters(r.FilterTerms, r.FilterRange); filters != nil {
+		boolQuery.Filter(filters...)
+	}
 
-	boolQuery.Must(match).Filter(filters...)
+	search := client.Search(r.Index).Query(boolQuery)
 
-	resp, err := client.Search(r.Index).
-		Query(boolQuery).
-		SortBy(sorters...).
-		Highlight(highlight).
-		Do(context.Background())
+	if sorters := getSorters(r.SortFields); sorters != nil {
+		search.SortBy(sorters...)
+	}
+	if highlight := getHighlight(r.HighlightFields, r.HighlightPreTags, r.HighlightPostTags); highlight != nil {
+		search.Highlight(highlight)
+	}
+
+	offset := (r.Page - 1) * r.PageSize
+	resp, err := search.From(offset).Size(r.PageSize).Do(context.Background())
 
 	if err != nil {
 		return
@@ -53,37 +58,45 @@ func (r *SearchReq) Search() (total int64, hits []*elastic.SearchHit, err error)
 }
 
 // 模糊匹配
-func getMatch(searchKey string, fieldBoost map[string]float64) elastic.Query {
-	match := elastic.NewMultiMatchQuery(searchKey)
+func getMatch(searchKey string, analyzer string, fieldBoost map[string]float64) elastic.Query {
+	if fieldBoost == nil || len(fieldBoost) <= 0 {
+		return nil
+	}
 
+	match := elastic.NewMultiMatchQuery(searchKey)
 	// 字段查询权重设置
-	if fieldBoost != nil && len(fieldBoost) > 0 {
-		for f, b := range fieldBoost {
-			match.FieldWithBoost(f, b)
-		}
+	for f, b := range fieldBoost {
+		match.FieldWithBoost(f, b)
+	}
+	if analyzer != "" && len(analyzer) > 0 {
+		match.Analyzer(analyzer)
 	}
 	return match
 }
 
 // 排序设置
 func getSorters(sortFields map[string]string) []elastic.Sorter {
+	if sortFields == nil || len(sortFields) <= 0 {
+		return nil
+	}
 	sorters := make([]elastic.Sorter, 0)
-	if sortFields != nil && len(sortFields) > 0 {
-		for f, s := range sortFields {
-			fs := elastic.NewFieldSort(f)
-			if strings.ToLower(s) == "desc" {
-				fs.Desc()
-			} else {
-				fs.Asc()
-			}
-			sorters = append(sorters, fs)
+	for f, s := range sortFields {
+		fs := elastic.NewFieldSort(f)
+		if strings.ToLower(s) == "desc" {
+			fs.Desc()
+		} else {
+			fs.Asc()
 		}
+		sorters = append(sorters, fs)
 	}
 	return sorters
 }
 
 // 过滤条件
 func getFilters(terms, rangeField map[string]string) []elastic.Query {
+	if (terms == nil || len(terms) <= 0) && (rangeField == nil || len(rangeField) <= 0) {
+		return nil
+	}
 	// 精确匹配 过滤
 	var filters = make([]elastic.Query, 0)
 	if terms != nil && len(terms) > 0 {
@@ -97,7 +110,7 @@ func getFilters(terms, rangeField map[string]string) []elastic.Query {
 		for f, b := range rangeField {
 			rq := elastic.NewRangeQuery(f)
 
-			nums := strings.Split(b, ":")
+			nums := strings.Split(b, ",")
 			if len(nums) <= 0 || len(nums) > 2 {
 				continue
 			} else {
@@ -116,12 +129,13 @@ func getFilters(terms, rangeField map[string]string) []elastic.Query {
 
 // 高亮设置
 func getHighlight(highlightFields []string, preTags, postTags string) *elastic.Highlight {
+	if highlightFields == nil || len(highlightFields) <= 0 {
+		return nil
+	}
 	hlfs := make([]*elastic.HighlighterField, 0)
-	if highlightFields != nil && len(highlightFields) > 0 {
-		for _, f := range highlightFields {
-			hl := elastic.NewHighlighterField(f)
-			hlfs = append(hlfs, hl)
-		}
+	for _, f := range highlightFields {
+		hl := elastic.NewHighlighterField(f)
+		hlfs = append(hlfs, hl)
 	}
 	hl := elastic.NewHighlight().Fields(hlfs...).
 		PreTags(preTags).PostTags(postTags)

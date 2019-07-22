@@ -26,11 +26,13 @@ type Search struct {
 }
 
 func TestBase_PutMapping(t *testing.T) {
-	req := &Base{
-		Index: "test",
-	}
 	mapping := `{"properties":{"content":{"type":"text","analyzer":"ik_max_word","search_analyzer":"ik_smart"}}}`
-	if _, err := req.PutMapping(mapping); err != nil {
+
+	req := &Base{
+		Index:   "test",
+		Mapping: mapping,
+	}
+	if _, err := req.PutMapping(); err != nil {
 		panic(err)
 	}
 }
@@ -61,9 +63,11 @@ func TestSearchReq_Search(t *testing.T) {
 		Index:      "knowledge",
 		SearchKey:  "掉帧",
 		SortFields: map[string]string{"sid": "desc"},
-		Terms:      map[string]string{"type": "0"},
-		Page:       1,
-		PageSize:   10,
+		FilterField: FilterField{
+			FilterTerms: map[string]string{"type": "0"},
+		},
+		Page:     1,
+		PageSize: 10,
 	}
 
 	total, hits, err := req.Search()
@@ -80,4 +84,15 @@ func TestSearchReq_Search(t *testing.T) {
 
 		fmt.Printf("%v\n\n", v)
 	}
+}
+
+func TestBase_GetTemplate(t *testing.T) {
+	base := &Base{
+		TemplateName: "test_template",
+	}
+	template, err := base.GetTemplate()
+	if err != nil {
+		panic(err)
+	}
+	fmt.Println(template)
 }
