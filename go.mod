@@ -1,4 +1,4 @@
-module 10.0.12.212/golibs/es-client
+module 10.0.12.212/golibs/eslib
 
 go 1.12
 
