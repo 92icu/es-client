@@ -1,4 +1,4 @@
-module gitlab.blackshark.com/user/eslib
+module gitlab.blackshark.com/golibs/esclient
 
 go 1.12
 
