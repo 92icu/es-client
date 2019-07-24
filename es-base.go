@@ -8,59 +8,48 @@ import (
 	"log"
 )
 
-type Base struct {
-	Index        string `json:"indices" validate:"required"`
-	Id           string
-	Mapping      string
-	TemplateName string
-	Template     string
-}
-
 type FilterField struct {
 	FilterTerms map[string]string // 过滤条件, 精确匹配 field -> value
 	FilterRange map[string]string // 过滤条件, 范围搜索, 数值及时间范围 两个值用逗号隔开, 时间格式化 yyyy-MM-dd HH:mm:ss
 }
 
-func (b *Base) ExistIndex() (exist bool, err error) {
-	exist, err = client.IndexExists(b.Index).Do(context.Background())
+func ExistIndex(index string) (exist bool, err error) {
+	exist, err = client.IndexExists(index).Do(context.Background())
 	return
 }
 
-func (b *Base) CreateIndex() (err error) {
-	if _, err = client.CreateIndex(b.Index).Pretty(true).Do(context.Background()); err != nil {
+func CreateIndex(index string) (err error) {
+	if _, err = client.CreateIndex(index).Pretty(true).Do(context.Background()); err != nil {
 		return
 	}
-	log.Printf("index[%s] create successed.", b.Index)
+	log.Printf("index[%s] create successed.", index)
 	return
 }
 
 // 新增/更新 mapping，index 不存在时自动创建
-func (b *Base) PutMapping() (ok bool, err error) {
-	if err = validate.Struct(b); err != nil {
-		return
-	}
-	exist, err := b.ExistIndex()
+func PutMapping(index, mapping string) (ok bool, err error) {
+	exist, err := ExistIndex(index)
 	if err != nil {
 		return
 	}
 	if !exist {
-		if err = b.CreateIndex(); err != nil {
+		if err = CreateIndex(index); err != nil {
 			return
 		}
 	}
-	if b.Mapping == "" {
+	if mapping == "" {
 		return false, errors.New("Not set mapping ")
 	}
 
-	resp, err := client.PutMapping().Index(b.Index).BodyString(b.Mapping).Do(context.Background())
+	resp, err := client.PutMapping().Index(index).BodyString(mapping).Do(context.Background())
 	if err != nil {
 		return
 	}
 	return resp.Acknowledged, nil
 }
 
-func (b *Base) GetMapping() (mapping string, err error) {
-	data, err := client.GetMapping().Index(b.Index).Do(context.Background())
+func GetMapping(index string) (mapping string, err error) {
+	data, err := client.GetMapping().Index(index).Do(context.Background())
 	if err != nil {
 		return
 	}
@@ -68,48 +57,44 @@ func (b *Base) GetMapping() (mapping string, err error) {
 	return string(bytes), err
 }
 
-func (b *Base) PutTemplate() (ok bool, err error) {
-	if err = validate.Struct(b); err != nil {
-		return
-	}
-
-	if b.TemplateName == "" {
+func PutTemplate(tplName, template string) (ok bool, err error) {
+	if tplName == "" {
 		return false, errors.New("Not set template name! ")
 	}
-	if b.Template == "" {
+	if template == "" {
 		return false, errors.New("Not set template content! ")
 	}
 
-	resp, err := client.IndexPutTemplate(b.TemplateName).BodyString(b.Template).Do(context.Background())
+	resp, err := client.IndexPutTemplate(tplName).BodyString(template).Do(context.Background())
 	if err != nil {
 		return
 	}
 	return resp.Acknowledged, err
 }
 
-func (b *Base) GetTemplate() (template string, err error) {
-	if b.TemplateName == "" {
+func GetTemplate(tplName string) (template string, err error) {
+	if tplName == "" {
 		return "", errors.New("Not set template-name! ")
 	}
-	responses, err := client.IndexGetTemplate(b.TemplateName).Do(context.Background())
+	responses, err := client.IndexGetTemplate(tplName).Do(context.Background())
 	if err != nil {
 		return
 	}
-	bytes, err := json.Marshal(responses[b.TemplateName])
+	bytes, err := json.Marshal(responses[tplName])
 	return string(bytes), err
 }
 
 // 删除索引
-func (b *Base) DeleteIndex() (ok bool, err error) {
-	exist, err := b.ExistIndex()
+func DeleteIndex(index string) (ok bool, err error) {
+	exist, err := ExistIndex(index)
 	if err != nil {
 		return
 	}
 	if !exist {
-		log.Printf("index[%s] is not exists.", b.Index)
+		log.Printf("index[%s] is not exists.", index)
 		return
 	}
-	resp, err := client.DeleteIndex(b.Index).Pretty(true).Do(context.Background())
+	resp, err := client.DeleteIndex(index).Pretty(true).Do(context.Background())
 	if err != nil {
 		return
 	}
@@ -117,8 +102,8 @@ func (b *Base) DeleteIndex() (ok bool, err error) {
 }
 
 // ID不存在则新增，存在则更新
-func (b *Base) Upsert(data interface{}) (status int, err error) {
-	ret, err := client.Index().Index(b.Index).Id(b.Id).BodyJson(data).Do(context.Background())
+func Upsert(index string, id string, data interface{}) (status int, err error) {
+	ret, err := client.Index().Index(index).Id(id).BodyJson(data).Do(context.Background())
 	if err != nil {
 		return
 	}
@@ -126,10 +111,10 @@ func (b *Base) Upsert(data interface{}) (status int, err error) {
 }
 
 // 批量新增
-func (b *Base) Bulk(datas []interface{}) error {
+func Bulk(index string, datas []interface{}) error {
 	bulk := client.Bulk()
 	for _, data := range datas {
-		doc := elastic.NewBulkUpdateRequest().Index(b.Index).Doc(data)
+		doc := elastic.NewBulkUpdateRequest().Index(index).Doc(data)
 		bulk.Add(doc)
 	}
 	_, err := bulk.Do(context.Background())
@@ -140,10 +125,10 @@ func (b *Base) Bulk(datas []interface{}) error {
 }
 
 // 自定义 id，datas: id -> [data]
-func (b *Base) BulkWithId(datas map[string]interface{}) error {
+func BulkWithId(index string, datas map[string]interface{}) error {
 	bulk := client.Bulk()
 	for id, data := range datas {
-		doc := elastic.NewBulkUpdateRequest().Index(b.Index).Id(id).Doc(data)
+		doc := elastic.NewBulkUpdateRequest().Index(index).Id(id).Doc(data)
 		bulk.Add(doc)
 	}
 	_, err := bulk.Do(context.Background())
@@ -154,10 +139,10 @@ func (b *Base) BulkWithId(datas map[string]interface{}) error {
 }
 
 // 删除指定 ID 数据
-func (b *Base) DeleteById() (ok int, err error) {
-	del, err := client.Delete().Index(b.Index).Id(b.Id).Do(context.TODO())
+func DeleteById(index, id string) (ok int, err error) {
+	del, err := client.Delete().Index(index).Id(id).Do(context.TODO())
 	if elastic.IsNotFound(err) {
-		log.Printf("id[%s] is not exist!", b.Id)
+		log.Printf("id[%s] is not exist!", id)
 		return ok, nil
 	}
 	if err != nil {
@@ -167,7 +152,7 @@ func (b *Base) DeleteById() (ok int, err error) {
 }
 
 // 按照条件删除数据
-func (b *Base) DeleteWithQuery(filters *FilterField) (failedId []string, err error) {
+func DeleteWithQuery(index string, filters *FilterField) (failedId []string, err error) {
 	if filters == nil {
 		return
 	}
@@ -176,7 +161,7 @@ func (b *Base) DeleteWithQuery(filters *FilterField) (failedId []string, err err
 		query.Filter(fl...)
 	}
 
-	resp, err := client.DeleteByQuery(b.Index).Query(query).Do(context.Background())
+	resp, err := client.DeleteByQuery(index).Query(query).Do(context.Background())
 	if err != nil {
 		return
 	}

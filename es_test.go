@@ -9,7 +9,7 @@ import (
 )
 
 func init() {
-	Init("http://106.52.30.252:9200", "elastic", "elastic")
+	Init("http://10.0.12.211:9200,http://10.0.12.222:9200", "elastic", "123456")
 }
 
 type Search struct {
@@ -28,20 +28,13 @@ type Search struct {
 func TestBase_PutMapping(t *testing.T) {
 	mapping := `{"properties":{"content":{"type":"text","analyzer":"ik_max_word","search_analyzer":"ik_smart"}}}`
 
-	req := &Base{
-		Index:   "test",
-		Mapping: mapping,
-	}
-	if _, err := req.PutMapping(); err != nil {
+	if _, err := PutMapping("test", mapping); err != nil {
 		panic(err)
 	}
 }
 
 func TestBase_GetMapping(t *testing.T) {
-	req := &Base{
-		Index: "test",
-	}
-	mapping, err := req.GetMapping()
+	mapping, err := GetMapping("test")
 	if err != nil {
 		panic(err)
 	}
@@ -49,10 +42,7 @@ func TestBase_GetMapping(t *testing.T) {
 }
 
 func TestBase_DeleteIndex(t *testing.T) {
-	req := &Base{
-		Index: "test",
-	}
-	if _, err := req.DeleteIndex(); err != nil {
+	if _, err := DeleteIndex("test"); err != nil {
 		panic(err)
 	}
 
@@ -87,10 +77,7 @@ func TestSearchReq_Search(t *testing.T) {
 }
 
 func TestBase_GetTemplate(t *testing.T) {
-	base := &Base{
-		TemplateName: "test_template",
-	}
-	template, err := base.GetTemplate()
+	template, err := GetTemplate("test_template")
 	if err != nil {
 		panic(err)
 	}
