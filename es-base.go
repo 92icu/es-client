@@ -8,9 +8,18 @@ import (
 	"log"
 )
 
-type FilterField struct {
-	FilterTerms map[string]string // 过滤条件, 精确匹配 field -> value
-	FilterRange map[string]string // 过滤条件, 范围搜索, 数值及时间范围 两个值用逗号隔开, 时间格式化 yyyy-MM-dd HH:mm:ss
+type filterType int
+
+const (
+	FILTER_TYPE_TERM filterType = iota
+	FILTER_TYPE_RANGE
+)
+
+type CommonFilter struct {
+	FilterType  filterType
+	FilterName  string
+	FilterField string
+	FilterValue []interface{}
 }
 
 func ExistIndex(index string) (exist bool, err error) {
@@ -152,12 +161,12 @@ func DeleteById(index, id string) (ok int, err error) {
 }
 
 // 按照条件删除数据
-func DeleteWithQuery(index string, filters *FilterField) (failedId []string, err error) {
+func DeleteWithQuery(index string, filters []*CommonFilter) (failedId []string, err error) {
 	if filters == nil {
 		return
 	}
 	query := elastic.NewBoolQuery()
-	if fl := getFilters(filters.FilterTerms, filters.FilterRange); fl != nil {
+	if fl := getFilters(filters); fl != nil {
 		query.Filter(fl...)
 	}
 
