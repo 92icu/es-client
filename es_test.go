@@ -1,8 +1,10 @@
 package eslib
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/olivere/elastic/v7"
 	"log"
 	"testing"
 	"time"
@@ -59,10 +61,10 @@ func TestBase_GetTemplate(t *testing.T) {
 
 func TestUpsert(t *testing.T) {
 	data := map[string]interface{}{
-		"name":    "Jame",
-		"sex":     "女",
-		"subject": "数学",
-		"score":   98,
+		"name":    "Jack",
+		"sex":     "男",
+		"subject": "语文",
+		"score":   88,
 		"date":    time.Now(),
 	}
 	status, _ := Upsert("test", "", data)
@@ -192,5 +194,22 @@ func TestDateHistAggregate_AggsDateHist(t *testing.T) {
 	if err != nil {
 		log.Fatal(value)
 	}
+	fmt.Println(value)
+}
+
+// 组装子聚合查询
+func TestSubAggregate(t *testing.T) {
+	agg_sub := elastic.NewStatsAggregation().Field("score")
+
+	aggs := elastic.NewTermsAggregation().Field("subject.keyword")
+	// 添加子聚合
+	aggs.SubAggregation("agg_sub", agg_sub)
+
+	result, err := client.Search("test").Aggregation("temp", aggs).Size(0).Do(context.Background())
+	if err != nil {
+		log.Println(err)
+	}
+	var value map[string]interface{}
+	json.Unmarshal(result.Aggregations["temp"], &value)
 	fmt.Println(value)
 }
