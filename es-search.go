@@ -33,7 +33,7 @@ func (r *CommonSearch) Search() (total int64, hits []*elastic.SearchHit, err err
 
 	boolQuery := r.getBoolQuery()
 
-	search := client.Search(r.Index).Query(boolQuery)
+	search := Client.Search(r.Index).Query(boolQuery)
 
 	if sorters := getSorters(r.SortFields); sorters != nil {
 		search.SortBy(sorters...)

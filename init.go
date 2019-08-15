@@ -6,13 +6,13 @@ import (
 	"strings"
 )
 
-var client *elastic.Client
+var Client *elastic.Client
 var validate *validator.Validate
 
 func Init(urls, username, password string) (err error) {
 	validate = validator.New()
 	hosts := strings.Split(urls, ",")
-	client, err = elastic.NewClient(elastic.SetURL(hosts...),
+	Client, err = elastic.NewClient(elastic.SetURL(hosts...),
 		elastic.SetBasicAuth(username, password),
 		elastic.SetSniff(false))
 	return
@@ -20,5 +20,5 @@ func Init(urls, username, password string) (err error) {
 
 func GetClient(urls, username, password string) (cli *elastic.Client, err error) {
 	err = Init(urls, username, password)
-	return client, err
+	return Client, err
 }

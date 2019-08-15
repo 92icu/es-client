@@ -11,8 +11,8 @@ import (
 )
 
 func init() {
-	//Init("http://106.52.30.252:9200", "elastic", "elastic")
-	Init("http://10.0.12.211:9200,http://10.0.12.212:9200,http://10.0.12.222:9200", "elastic", "123456")
+	//测试环境
+	Init("http://10.0.12.211:9200,http://10.0.12.212:9200,http://10.0.12.222:9200", "elastic", "elastic")
 }
 
 type Search struct {
@@ -69,6 +69,20 @@ func TestUpsert(t *testing.T) {
 	}
 	status, _ := Upsert("test", "", data)
 	fmt.Println(status)
+}
+
+func TestBulk(t *testing.T) {
+	data := map[string]interface{}{
+		"name":     "Jack",
+		"sex":      "男",
+		"subject":  "语文",
+		"score":    88,
+		"date":     time.Now(),
+		"interest": []string{"音乐", "美食"},
+	}
+	datas := []interface{}{data}
+	err := Bulk("test", datas)
+	fmt.Println(err)
 }
 
 func TestSearchReq_Search(t *testing.T) {
@@ -205,11 +219,115 @@ func TestSubAggregate(t *testing.T) {
 	// 添加子聚合
 	aggs.SubAggregation("agg_sub", agg_sub)
 
-	result, err := client.Search("test").Aggregation("temp", aggs).Size(0).Do(context.Background())
+	result, err := Client.Search("test").Aggregation("temp", aggs).Size(0).Do(context.Background())
 	if err != nil {
 		log.Println(err)
 	}
 	var value map[string]interface{}
 	json.Unmarshal(result.Aggregations["temp"], &value)
 	fmt.Println(value)
+}
+
+func TestSuggest(t *testing.T) {
+	template := `{
+"index_patterns" : [
+      "blogs*"
+    ],
+"settings": {
+  "analysis": {
+    "tokenizer" : {
+      "my_pinyin" : {
+          "type" : "pinyin",
+          "keep_separate_first_letter" : true,
+          "keep_full_pinyin" : true,
+          "keep_original" : true,
+          "limit_first_letter_length" : 16,
+          "lowercase" : true,
+          "remove_duplicated_term" : true
+      }
+    },
+    "analyzer": {
+      "pinyin_analyzer": {
+        "tokenizer": "my_pinyin"
+      }
+    }
+  }
+},
+"mappings": {
+    "properties": {
+      "body": {
+        "type": "text",
+        "analyzer": "ik_max_word",
+        "fields": {
+          "keyword": {
+            "type": "keyword"
+          },
+          "suggest_text": {
+            "type": "completion",
+            "analyzer": "standard",
+            "preserve_separators": false
+          },
+          "pinyin": {
+            "type": "completion",
+            "analyzer": "pinyin_analyzer",
+            "preserve_separators": false
+          }
+        }
+      }
+    }
+  }
+}`
+	PutTemplate("blog_template", template)
+
+	Upsert("blogs", "", `{"body": "黑鲨游戏手机 2"}`)
+	Upsert("blogs", "", `{"body": "黑鲨科技有限公司"}`)
+	Upsert("blogs", "", `{"body": "南昌黑鲨科技"}`)
+	Upsert("blogs", "", `{"body": "游戏手机哪家强"}`)
+	Upsert("blogs", "", `{"body": "玩游戏用黑鲨"}`)
+}
+
+func TestDeleteTemplate(t *testing.T) {
+	_, err := Client.IndexDeleteTemplate("blog_template").Do(context.Background())
+	if err != nil {
+		panic(err)
+	}
+}
+
+func TestTermSuggest(t *testing.T) {
+	suggests := TermSuggest("blogs", "body.pinyin", "hs")
+
+	for _, suggest := range suggests {
+		for _, opt := range suggest.Options {
+			fmt.Println(opt.Text)
+		}
+	}
+}
+
+func TestPhraseSuggest(t *testing.T) {
+	suggests := PhraseSuggest("blogs", "body.suggest_text", "黑鲨")
+
+	for _, suggest := range suggests {
+		for _, opt := range suggest.Options {
+			fmt.Println(opt.Text)
+		}
+	}
+}
+
+func TestCompletionSuggest(t *testing.T) {
+	suggests := CompletionSuggest("blogs", "body.suggest_text", "黑鲨")
+
+	for _, suggest := range suggests {
+		for _, opt := range suggest.Options {
+			fmt.Println(opt.Text)
+		}
+	}
+}
+
+func TestContextSuggest(t *testing.T) {
+	suggests := ContextSuggest("blogs", "body.suggest_text", "黑鲨")
+	for _, suggest := range suggests {
+		for _, opt := range suggest.Options {
+			fmt.Println(opt.Text)
+		}
+	}
 }

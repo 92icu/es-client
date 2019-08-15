@@ -23,12 +23,12 @@ type CommonFilter struct {
 }
 
 func ExistIndex(index string) (exist bool, err error) {
-	exist, err = client.IndexExists(index).Do(context.Background())
+	exist, err = Client.IndexExists(index).Do(context.Background())
 	return
 }
 
 func CreateIndex(index string) (err error) {
-	if _, err = client.CreateIndex(index).Pretty(true).Do(context.Background()); err != nil {
+	if _, err = Client.CreateIndex(index).Pretty(true).Do(context.Background()); err != nil {
 		return
 	}
 	log.Printf("index[%s] create successed.", index)
@@ -50,7 +50,7 @@ func PutMapping(index, mapping string) (ok bool, err error) {
 		return false, errors.New("Not set mapping ")
 	}
 
-	resp, err := client.PutMapping().Index(index).BodyString(mapping).Do(context.Background())
+	resp, err := Client.PutMapping().Index(index).BodyString(mapping).Do(context.Background())
 	if err != nil {
 		return
 	}
@@ -58,7 +58,7 @@ func PutMapping(index, mapping string) (ok bool, err error) {
 }
 
 func GetMapping(index string) (mapping string, err error) {
-	data, err := client.GetMapping().Index(index).Do(context.Background())
+	data, err := Client.GetMapping().Index(index).Do(context.Background())
 	if err != nil {
 		return
 	}
@@ -74,7 +74,7 @@ func PutTemplate(tplName, template string) (ok bool, err error) {
 		return false, errors.New("Not set template content! ")
 	}
 
-	resp, err := client.IndexPutTemplate(tplName).BodyString(template).Do(context.Background())
+	resp, err := Client.IndexPutTemplate(tplName).BodyString(template).Do(context.Background())
 	if err != nil {
 		return
 	}
@@ -85,7 +85,7 @@ func GetTemplate(tplName string) (template string, err error) {
 	if tplName == "" {
 		return "", errors.New("Not set template-name! ")
 	}
-	responses, err := client.IndexGetTemplate(tplName).Do(context.Background())
+	responses, err := Client.IndexGetTemplate(tplName).Do(context.Background())
 	if err != nil {
 		return
 	}
@@ -103,7 +103,7 @@ func DeleteIndex(index string) (ok bool, err error) {
 		log.Printf("index[%s] is not exists.", index)
 		return
 	}
-	resp, err := client.DeleteIndex(index).Pretty(true).Do(context.Background())
+	resp, err := Client.DeleteIndex(index).Pretty(true).Do(context.Background())
 	if err != nil {
 		return
 	}
@@ -112,7 +112,7 @@ func DeleteIndex(index string) (ok bool, err error) {
 
 // ID不存在则新增，存在则更新
 func Upsert(index string, id string, data interface{}) (status int, err error) {
-	ret, err := client.Index().Index(index).Id(id).BodyJson(data).Do(context.Background())
+	ret, err := Client.Index().Index(index).Id(id).BodyJson(data).Do(context.Background())
 	if err != nil {
 		return
 	}
@@ -121,9 +121,9 @@ func Upsert(index string, id string, data interface{}) (status int, err error) {
 
 // 批量新增
 func Bulk(index string, datas []interface{}) error {
-	bulk := client.Bulk()
+	bulk := Client.Bulk()
 	for _, data := range datas {
-		doc := elastic.NewBulkUpdateRequest().Index(index).Doc(data)
+		doc := elastic.NewBulkIndexRequest().Index(index).Doc(data)
 		bulk.Add(doc)
 	}
 	_, err := bulk.Do(context.Background())
@@ -135,7 +135,7 @@ func Bulk(index string, datas []interface{}) error {
 
 // 自定义 id，datas: id -> [data]
 func BulkWithId(index string, datas map[string]interface{}) error {
-	bulk := client.Bulk()
+	bulk := Client.Bulk()
 	for id, data := range datas {
 		doc := elastic.NewBulkUpdateRequest().Index(index).Id(id).Doc(data)
 		bulk.Add(doc)
@@ -149,7 +149,7 @@ func BulkWithId(index string, datas map[string]interface{}) error {
 
 // 删除指定 ID 数据
 func DeleteById(index, id string) (ok int, err error) {
-	del, err := client.Delete().Index(index).Id(id).Do(context.TODO())
+	del, err := Client.Delete().Index(index).Id(id).Do(context.TODO())
 	if elastic.IsNotFound(err) {
 		log.Printf("id[%s] is not exist!", id)
 		return ok, nil
@@ -170,7 +170,7 @@ func DeleteWithQuery(index string, filters []*CommonFilter) (failedId []string, 
 		query.Filter(fl...)
 	}
 
-	resp, err := client.DeleteByQuery(index).Query(query).Do(context.Background())
+	resp, err := Client.DeleteByQuery(index).Query(query).Do(context.Background())
 	if err != nil {
 		return
 	}

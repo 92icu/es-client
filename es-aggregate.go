@@ -58,7 +58,7 @@ func (c *CommonAggregate) AggsCommon() (value map[string]interface{}, err error)
 		return
 	}
 
-	result, err := client.Search(c.Index).Aggregation(c.AggName, aggs).Size(0).Do(context.Background())
+	result, err := Client.Search(c.Index).Aggregation(c.AggName, aggs).Size(0).Do(context.Background())
 	if err != nil {
 		return
 	}
@@ -77,7 +77,7 @@ func (f *FilterAggregate) AggsFilter() (value map[string]interface{}, err error)
 
 	aggs := elastic.NewFilterAggregation().Filter(filter).SubAggregation(f.AggName, sub_aggs)
 
-	result, err := client.Search(f.Index).Aggregation(TEMP_AGG_NAME, aggs).Size(0).Do(context.Background())
+	result, err := Client.Search(f.Index).Aggregation(TEMP_AGG_NAME, aggs).Size(0).Do(context.Background())
 	if err != nil {
 		return
 	}
@@ -98,7 +98,7 @@ func (f *FiltersAggregate) AggsFilters() (value map[string]interface{}, err erro
 		}
 	}
 
-	result, err := client.Search(f.Index).Aggregation(TEMP_AGG_NAME, aggs).Size(0).Do(context.Background())
+	result, err := Client.Search(f.Index).Aggregation(TEMP_AGG_NAME, aggs).Size(0).Do(context.Background())
 	if err != nil {
 		return
 	}
@@ -113,7 +113,7 @@ func (d *DateHistAggregate) AggsDateHist() (value map[string]interface{}, err er
 		Field(d.Field).Interval(d.Interval).
 		Format(d.Format).TimeZone(d.TimeZone).Offset(d.Offset)
 
-	result, err := client.Search(d.Index).Aggregation(TEMP_AGG_NAME, aggs).Size(0).Do(context.Background())
+	result, err := Client.Search(d.Index).Aggregation(TEMP_AGG_NAME, aggs).Size(0).Do(context.Background())
 	if err != nil {
 		return
 	}
