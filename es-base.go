@@ -110,6 +110,14 @@ func DeleteIndex(index string) (ok bool, err error) {
 	return resp.Acknowledged, nil
 }
 
+func DeleteTemplate(templateName string) (ok bool, err error) {
+	resp, err := Client.IndexDeleteTemplate(templateName).Do(context.Background())
+	if err != nil {
+		return
+	}
+	return resp.Acknowledged, err
+}
+
 // ID不存在则新增，存在则更新
 func Upsert(index string, id string, data interface{}) (status int, err error) {
 	ret, err := Client.Index().Index(index).Id(id).BodyJson(data).Do(context.Background())

@@ -1,4 +1,4 @@
-package signle
+package signle_test
 
 import (
 	"context"
@@ -9,39 +9,11 @@ import (
 	"testing"
 )
 
-type GeoData struct {
-	Username string `json:"username"`
-	Location string `json:"location"`
-}
-
-const geoIndex = "geo_test"
+const geoIndex = "student"
 
 func init() {
-	eslib.Init("http://10.0.12.211:9200,http://10.0.12.212:9200,http://10.0.12.222:9200", "elastic", "elastic")
-}
-
-func TestAddData(t *testing.T) {
-	mapping := `{
-    "properties": {
-      "location": {
-        "type": "geo_point"
-      }
-    }
-}`
-	if ok, err := eslib.PutMapping(geoIndex, mapping); err != nil {
-		panic(err)
-	} else {
-		fmt.Println(ok)
-	}
-
-	datas := []interface{}{
-		&GeoData{Username: "Jame", Location: "31.191570,121.523288"},
-		&GeoData{Username: "Jame1", Location: "31.191643,121.527826"},
-		&GeoData{Username: "Jame2", Location: "31.190303,121.523835"},
-		&GeoData{Username: "Jame3", Location: "31.203575,121.557634"},
-		&GeoData{Username: "Jame4", Location: "31.142267,121.808682"},
-	}
-	eslib.Bulk(geoIndex, datas)
+	//InitData()
+	InitES()
 }
 
 //地理边界框
@@ -93,6 +65,6 @@ func printGeoResult(result *elastic.SearchResult, err error) {
 		panic(err)
 	}
 	fmt.Println("total: ", result.TotalHits())
-	each := result.Each(reflect.TypeOf(GeoData{}))
+	each := result.Each(reflect.TypeOf(Student{}))
 	fmt.Println(each)
 }

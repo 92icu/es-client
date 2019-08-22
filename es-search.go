@@ -26,7 +26,7 @@ type CommonSearch struct {
 	*HightLight
 }
 
-func (r *CommonSearch) Search() (total int64, hits []*elastic.SearchHit, err error) {
+func (r *CommonSearch) Search() (result *elastic.SearchResult, err error) {
 	if err = validate.Struct(r); err != nil {
 		return
 	}
@@ -48,7 +48,7 @@ func (r *CommonSearch) Search() (total int64, hits []*elastic.SearchHit, err err
 	if err != nil {
 		return
 	}
-	return resp.TotalHits(), resp.Hits.Hits, nil
+	return resp, nil
 }
 
 func (r *CommonSearch) getBoolQuery() *elastic.BoolQuery {

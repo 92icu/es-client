@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"github.com/olivere/elastic/v7"
 	"log"
+	"reflect"
 	"testing"
 	"time"
 )
@@ -101,13 +102,14 @@ func TestSearchReq_Search(t *testing.T) {
 		PageSize: 10,
 	}
 
-	total, hits, err := req.Search()
+	result, err := req.Search()
 	if err != nil {
 		panic(err)
 	}
-	fmt.Println("total: ", total)
+	fmt.Println("total: ", result.TotalHits())
 
-	for _, hit := range hits {
+	//数据映射，方式一
+	for _, hit := range result.Hits.Hits {
 		var v *Search
 		if err := json.Unmarshal(hit.Source, &v); err != nil {
 			panic(err)
@@ -115,6 +117,9 @@ func TestSearchReq_Search(t *testing.T) {
 
 		fmt.Printf("%v\n\n", v)
 	}
+	//方式二
+	each := result.Each(reflect.TypeOf(Search{}))
+	fmt.Println(each)
 }
 
 func TestMetricAgg_AggsMetric(t *testing.T) {
